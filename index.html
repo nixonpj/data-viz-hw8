@@ -40,15 +40,19 @@
 <body>
     <div class="chart-container">
         <h1 class="headline">
-            <center>Number of children living under poverty in 2019</center>
+            <center>Total Agricultural Income by County</center>
         </h1>
+        <img src="layer4.png" align="right"> 
 
         <svg width="1050px" height="500px">
 
         </svg>
-
+        <p><center>Source: USDA - National Agricultural Statistics Service Census 2017 
+            Column: INCOME, FARM-RELATED - RECEIPTS, MEASURED IN $
+        </center></p>
         <div class="pop-up">
         </div>
+
     </div>
 </body>
 
@@ -65,7 +69,7 @@
 
     // //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
     Promise.all([ //waits for all the data to load, then when loaded will return it all in one array called res
-        d3.json('county-topo-1.json'),
+        d3.json('agri_topo.json'),
     ])
         .then(ready)
         .catch((err) => {
@@ -96,18 +100,50 @@
             return a != b;
         });
 
+        let innerCountyLines = topojson.mesh(raw, raw.objects.county, function (a, b) {
+            return a != b;
+        });
+
+        let agri_value = county.features.map( function(d) { return d.properties.Value});
+
+        console.log(d3.extent(agri_value))   
+
+        let popup = d3.select(".pop-up");
+        let shuffled = d3.shuffle(county.features); //trick
+
+        var colorScale = d3.scaleThreshold()
+            .domain([1049000, 2103000, 3462000, 5571000, 9386000])
+            .range(d3.schemeBlues[6]);
+
+        let counties = svg
+            .append('g')
+            .selectAll(".counties")
+            .data(shuffled)
+            .join("path")
+            .attr("d", path)
+            .join("counties")
+            .attr("class", function (d) { return "counties p-" + d.properties.NAMELSAD }) // Give circles a class name.
+            .style("fill", function (d) { d.total = d.properties.Value || 0; return colorScale(d.total);})
+            .style("stroke", "#ccc")
+            .style("stroke-width", .5)
+
+        svg
+            .append("path")
+            // .attr("d", path(innerCountyLines))
+        //     .style("fill", "none")
+        //     .style("stroke", "#333")
+            // .style("stroke-width", 0.5)
 
         svg
             .selectAll(".states")
             .data(state.features)
             .join("path")
             .attr("d", path)
-            .style("fill", "#eee")
+            .style("fill", "none")
             .style("stroke", "#333")
             .style("stroke-width", 1)
             .style("pointer-events", "none")
-
-
+            
         let states = svg
             .append("path")
             .attr("d", path(innerlines))
@@ -116,58 +152,24 @@
             .style("stroke-width", 1)
             .style("pointer-events", "none")
 
-        let poverty_num = county.features.map( function(d) { return d.properties.pop_18_in_poverty});
-
-        console.log(d3.extent(poverty_num))
-
-        let scaleFunction = d3.scaleSqrt()
-        .domain(d3.extent(poverty_num))
-        .range([0,35])    
-
-        let popup = d3.select(".pop-up");
-        let shuffled = d3.shuffle(county.features); //trick
-
-        let counties = svg.append("g")
-            .selectAll(".counties")
-            .data(shuffled)
-            .join("circle")
-            .attr("class", function (d) { return "counties p-" + d.properties.NAME }) // Give circles a class name.
-            .attr("r", d => scaleFunction(d.properties.pop_18_in_poverty))
-            .attr("cx", d => {
-                return path.centroid(d)[0]
-            })
-            .attr("cy", d => {
-                return path.centroid(d)[1]
-            })
-            .style("fill", "#FFA500")
-            .style("stroke", "#ccc")
-            .style("stroke-width", .2)
-
-
 
         counties.on("mouseover", (event, d) => {
 
             counties
-                .style("fill", "#FFA500")
-                .style("stroke", "#ccc")
-                .style("stroke-width", .2)
+            //     .style("fill", function (d) { d.total = d.properties.Value || 0; return colorScale(d.total);})
+            //     .style("stroke", "#ccc")
+            //     .style("stroke-width", .2)
                 .style("fill-opacity", .5)
 
-            svg.select(".p-" + d.properties.NAME)
-                .style("stroke", "black")
-                .style("stroke-width", 2)
-                .style("fill", "yellow")
+            svg.select(".p-" + d.properties.NAMELSAD)
+                .style("stroke", "green")
+                .style("stroke-width", 20)
+                .style("fill", "#ff0000")
                 .style("fill-opacity", 1)
                 .raise()
 
-            // let reScaleLang = d3.scaleThreshold()
-            //     .domain([0]) //make sure to put this in brackets!
-            //     .range(["below", "above"])
-
-            // let diff = +d.mnav3poolgcs - 3
-
-            let lang = "In " + d.properties.Geo_QName + " there are " + d.properties.pop_18_in_poverty
-            + " estimated children under 18 living in poverty."
+            let lang = d.properties.NAMELSAD + ", " + d.properties.State + " has agricultural output worth $" + 
+                        d.properties.Value 
 
             popup
                 .style("opacity", 1)
@@ -176,11 +178,11 @@
                 .html(lang)
 
         counties.on("mouseout", (event, d) => {
-            // console.log(event)
+            console.log(event)
             counties
-                .style("fill", "#FFA500")
-                .style("stroke", "#ccc")
-                .style("stroke-width", .2)
+                // .style("fill", function (d) { d.total = d.properties.Value || 0; return colorScale(d.total);})
+                // .style("stroke", "#ccc")
+                // .style("stroke-width", .2)
                 .style("fill-opacity", 1)
 
             popup
